@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Memory
@@ -31,6 +32,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -44,7 +46,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -101,6 +105,10 @@ fun OrionApp() {
         )
     }
 
+    var thinking by remember {
+        mutableStateOf(false)
+    }
+
     Scaffold(
         bottomBar = {
 
@@ -112,7 +120,7 @@ fun OrionApp() {
                     icon = {
                         Icon(
                             Icons.Default.Home,
-                            contentDescription = "Home"
+                            "Home"
                         )
                     },
                     label = {
@@ -126,7 +134,7 @@ fun OrionApp() {
                     icon = {
                         Icon(
                             Icons.Default.Chat,
-                            contentDescription = "Chat"
+                            "Chat"
                         )
                     },
                     label = {
@@ -140,7 +148,7 @@ fun OrionApp() {
                     icon = {
                         Icon(
                             Icons.Default.Memory,
-                            contentDescription = "Memory"
+                            "Memory"
                         )
                     },
                     label = {
@@ -154,7 +162,7 @@ fun OrionApp() {
                     icon = {
                         Icon(
                             Icons.Default.Settings,
-                            contentDescription = "Settings"
+                            "Settings"
                         )
                     },
                     label = {
@@ -165,62 +173,87 @@ fun OrionApp() {
         }
     ) { padding ->
 
-        if (selectedTab == 0) {
+        when (selectedTab) {
 
-            HomeScreen(
+            0 -> HomeScreen(
                 modifier = Modifier.padding(padding),
                 onSend = { text ->
 
                     if (text.isNotBlank()) {
 
                         messages = messages +
-                                ChatMessage(text.trim(), true)
-
-                        messages = messages +
                                 ChatMessage(
-                                    orionReply(text),
-                                    false
+                                    text.trim(),
+                                    true
                                 )
 
+                        thinking = true
                         selectedTab = 1
                     }
                 }
             )
 
-        } else if (selectedTab == 1) {
-
-            ChatScreen(
+            1 -> ChatScreen(
                 modifier = Modifier.padding(padding),
                 messages = messages,
+                thinking = thinking,
+                onClear = {
+
+                    messages = listOf(
+                        ChatMessage(
+                            "Chat cleared. How can I help?",
+                            false
+                        )
+                    )
+                },
                 onSend = { text ->
 
-                    if (text.isNotBlank()) {
-
-                        messages = messages +
-                                ChatMessage(text.trim(), true)
+                    if (text.isNotBlank() && !thinking) {
 
                         messages = messages +
                                 ChatMessage(
-                                    orionReply(text),
-                                    false
+                                    text.trim(),
+                                    true
                                 )
+
+                        thinking = true
                     }
                 }
             )
 
-        } else if (selectedTab == 2) {
-
-            SimpleScreen(
+            2 -> SimpleScreen(
                 "Memory",
                 Modifier.padding(padding)
             )
 
-        } else {
-
-            SimpleScreen(
+            3 -> SimpleScreen(
                 "Settings",
                 Modifier.padding(padding)
             )
+        }
+    }
+
+    LaunchedEffect(
+        thinking,
+        messages.size
+    ) {
+
+        if (thinking) {
+
+            delay(700)
+
+            val lastMessage = messages.lastOrNull()
+
+            if (lastMessage != null && lastMessage.isUser) {
+
+                messages = messages +
+                        ChatMessage(
+                            orionReply(lastMessage.text),
+                            false
+                        )
+            }
+
+            thinking = false
         }
     }
 }
@@ -264,13 +297,13 @@ fun HomeScreen(
             ) {
 
                 Text(
-                    text = "ORION",
+                    "ORION",
                     fontSize = 25.sp,
                     fontWeight = FontWeight.Bold
                 )
 
                 Text(
-                    text = "Your personal AI assistant",
+                    "Your personal AI assistant",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 13.sp
                 )
@@ -282,7 +315,7 @@ fun HomeScreen(
 
                 Icon(
                     Icons.Default.NotificationsNone,
-                    contentDescription = "Notifications"
+                    "Notifications"
                 )
             }
         }
@@ -292,13 +325,13 @@ fun HomeScreen(
         )
 
         Text(
-            text = "Good morning",
+            greeting(),
             fontSize = 16.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Text(
-            text = "How can I help?",
+            "How can I help?",
             fontSize = 30.sp,
             fontWeight = FontWeight.Bold
         )
@@ -311,14 +344,14 @@ fun HomeScreen(
             modifier = Modifier
                 .size(190.dp)
                 .background(
-                    brush = Brush.radialGradient(
+                    Brush.radialGradient(
                         listOf(
                             Color(0xFF6D8DFF),
                             Color(0xFF344C9A),
                             Color.Transparent
                         )
                     ),
-                    shape = CircleShape
+                    CircleShape
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -334,7 +367,7 @@ fun HomeScreen(
             ) {
 
                 Text(
-                    text = "✦",
+                    "✦",
                     fontSize = 48.sp,
                     color = MaterialTheme.colorScheme.onPrimary
                 )
@@ -368,7 +401,7 @@ fun HomeScreen(
 
                     Icon(
                         Icons.Default.Send,
-                        contentDescription = "Send"
+                        "Send"
                     )
                 }
             },
@@ -381,7 +414,7 @@ fun HomeScreen(
         )
 
         Text(
-            text = "Quick actions",
+            "Quick actions",
             modifier = Modifier.fillMaxWidth(),
             fontWeight = FontWeight.SemiBold,
             fontSize = 18.sp
@@ -439,7 +472,7 @@ fun QuickAction(
 
             Icon(
                 icon,
-                contentDescription = title
+                title
             )
 
             Spacer(
@@ -447,7 +480,7 @@ fun QuickAction(
             )
 
             Text(
-                text = title,
+                title,
                 fontSize = 13.sp
             )
         }
@@ -458,6 +491,8 @@ fun QuickAction(
 fun ChatScreen(
     modifier: Modifier = Modifier,
     messages: List<ChatMessage>,
+    thinking: Boolean,
+    onClear: () -> Unit,
     onSend: (String) -> Unit
 ) {
 
@@ -492,7 +527,7 @@ fun ChatScreen(
             ) {
 
                 Text(
-                    text = "✦",
+                    "✦",
                     color = MaterialTheme.colorScheme.onPrimary,
                     fontSize = 22.sp
                 )
@@ -502,18 +537,30 @@ fun ChatScreen(
                 modifier = Modifier.width(12.dp)
             )
 
-            Column {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
 
                 Text(
-                    text = "ORION",
+                    "ORION",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
 
                 Text(
-                    text = "Online",
+                    if (thinking) "Thinking..." else "Online",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            IconButton(
+                onClick = onClear
+            ) {
+
+                Icon(
+                    Icons.Default.DeleteOutline,
+                    "Clear chat"
                 )
             }
         }
@@ -536,6 +583,14 @@ fun ChatScreen(
                 item {
 
                     MessageBubble(message)
+                }
+            }
+
+            if (thinking) {
+
+                item {
+
+                    ThinkingBubble()
                 }
             }
         }
@@ -567,8 +622,7 @@ fun ChatScreen(
             FilledIconButton(
                 onClick = {
 
-                    if (input.isNotBlank()) {
-
+                    if (input.isNotBlank() && !thinking) {
                         onSend(input)
                         input = ""
                     }
@@ -577,7 +631,7 @@ fun ChatScreen(
 
                 Icon(
                     Icons.Default.Send,
-                    contentDescription = "Send"
+                    "Send"
                 )
             }
         }
@@ -608,7 +662,7 @@ fun MessageBubble(
         ) {
 
             Text(
-                text = message.text,
+                message.text,
                 modifier = Modifier.padding(
                     horizontal = 16.dp,
                     vertical = 11.dp
@@ -621,6 +675,41 @@ fun MessageBubble(
                 fontSize = 15.sp
             )
         }
+    }
+}
+
+@Composable
+fun ThinkingBubble() {
+
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+
+        Text(
+            "ORION is thinking...",
+            modifier = Modifier.padding(
+                horizontal = 16.dp,
+                vertical = 11.dp
+            ),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 15.sp
+        )
+    }
+}
+
+fun greeting(): String {
+
+    val hour = Calendar.getInstance()
+        .get(Calendar.HOUR_OF_DAY)
+
+    return when {
+
+        hour < 12 -> "Good morning"
+
+        hour < 18 -> "Good afternoon"
+
+        else -> "Good evening"
     }
 }
 
@@ -671,7 +760,7 @@ fun orionReply(
         }
 
         else -> {
-            "I understand: \"$message\". Full AI intelligence will be connected in a later update."
+            "I understand: \"$message\". I'm still learning, but my full AI system is coming."
         }
     }
 }
@@ -688,7 +777,7 @@ fun SimpleScreen(
     ) {
 
         Text(
-            text = title,
+            title,
             fontSize = 30.sp,
             fontWeight = FontWeight.Bold
         )
