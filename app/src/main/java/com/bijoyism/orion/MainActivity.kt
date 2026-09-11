@@ -6,23 +6,44 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.material3.Card
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -41,10 +62,11 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun OrionTheme(content: @Composable () -> Unit) {
-
+fun OrionTheme(
+    content: @Composable () -> Unit
+) {
     MaterialTheme(
-        colorScheme = darkColorScheme(
+        colorScheme = androidx.compose.material3.darkColorScheme(
             primary = Color(0xFFB8C9FF),
             onPrimary = Color(0xFF102E5C),
             secondary = Color(0xFFB8DDF5),
@@ -64,9 +86,11 @@ data class ChatMessage(
 @Composable
 fun OrionApp() {
 
-    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    var selectedTab by remember {
+        mutableIntStateOf(0)
+    }
 
-    var messages by rememberSaveable {
+    var messages by remember {
         mutableStateOf(
             listOf(
                 ChatMessage(
@@ -86,7 +110,10 @@ fun OrionApp() {
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
                     icon = {
-                        Icon(Icons.Default.Home, "Home")
+                        Icon(
+                            Icons.Default.Home,
+                            contentDescription = "Home"
+                        )
                     },
                     label = {
                         Text("Home")
@@ -97,7 +124,10 @@ fun OrionApp() {
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
                     icon = {
-                        Icon(Icons.Default.Chat, "Chat")
+                        Icon(
+                            Icons.Default.Chat,
+                            contentDescription = "Chat"
+                        )
                     },
                     label = {
                         Text("Chat")
@@ -108,7 +138,10 @@ fun OrionApp() {
                     selected = selectedTab == 2,
                     onClick = { selectedTab = 2 },
                     icon = {
-                        Icon(Icons.Default.Memory, "Memory")
+                        Icon(
+                            Icons.Default.Memory,
+                            contentDescription = "Memory"
+                        )
                     },
                     label = {
                         Text("Memory")
@@ -119,7 +152,10 @@ fun OrionApp() {
                     selected = selectedTab == 3,
                     onClick = { selectedTab = 3 },
                     icon = {
-                        Icon(Icons.Default.Settings, "Settings")
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = "Settings"
+                        )
                     },
                     label = {
                         Text("Settings")
@@ -129,46 +165,59 @@ fun OrionApp() {
         }
     ) { padding ->
 
-        when (selectedTab) {
+        if (selectedTab == 0) {
 
-            0 -> HomeScreen(
+            HomeScreen(
                 modifier = Modifier.padding(padding),
-                onOpenChat = {
-                    messages = messages + ChatMessage(it, true)
-                    messages = messages + ChatMessage(
-                        orionReply(it),
-                        false
-                    )
-                    selectedTab = 1
+                onSend = { text ->
+
+                    if (text.isNotBlank()) {
+
+                        messages = messages +
+                                ChatMessage(text.trim(), true)
+
+                        messages = messages +
+                                ChatMessage(
+                                    orionReply(text),
+                                    false
+                                )
+
+                        selectedTab = 1
+                    }
                 }
             )
 
-            1 -> ChatScreen(
+        } else if (selectedTab == 1) {
+
+            ChatScreen(
                 modifier = Modifier.padding(padding),
                 messages = messages,
                 onSend = { text ->
 
                     if (text.isNotBlank()) {
 
-                        messages = messages + ChatMessage(
-                            text.trim(),
-                            true
-                        )
+                        messages = messages +
+                                ChatMessage(text.trim(), true)
 
-                        messages = messages + ChatMessage(
-                            orionReply(text),
-                            false
-                        )
+                        messages = messages +
+                                ChatMessage(
+                                    orionReply(text),
+                                    false
+                                )
                     }
                 }
             )
 
-            2 -> SimpleScreen(
+        } else if (selectedTab == 2) {
+
+            SimpleScreen(
                 "Memory",
                 Modifier.padding(padding)
             )
 
-            3 -> SimpleScreen(
+        } else {
+
+            SimpleScreen(
                 "Settings",
                 Modifier.padding(padding)
             )
@@ -179,25 +228,12 @@ fun OrionApp() {
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    onOpenChat: (String) -> Unit
+    onSend: (String) -> Unit
 ) {
 
-    var input by rememberSaveable {
+    var input by remember {
         mutableStateOf("")
     }
-
-    val infiniteTransition =
-        rememberInfiniteTransition(label = "orion")
-
-    val pulse by infiniteTransition.animateFloat(
-        initialValue = 0.96f,
-        targetValue = 1.04f,
-        animationSpec = infiniteRepeatable(
-            animation = androidx.compose.animation.core.tween(1800),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
-        ),
-        label = "pulse"
-    )
 
     Column(
         modifier = modifier
@@ -214,7 +250,9 @@ fun HomeScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(
+            modifier = Modifier.height(28.dp)
+        )
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -241,6 +279,7 @@ fun HomeScreen(
             IconButton(
                 onClick = {}
             ) {
+
                 Icon(
                     Icons.Default.NotificationsNone,
                     contentDescription = "Notifications"
@@ -248,7 +287,9 @@ fun HomeScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(38.dp))
+        Spacer(
+            modifier = Modifier.height(38.dp)
+        )
 
         Text(
             text = "Good morning",
@@ -262,12 +303,13 @@ fun HomeScreen(
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.height(35.dp))
+        Spacer(
+            modifier = Modifier.height(35.dp)
+        )
 
         Box(
             modifier = Modifier
                 .size(190.dp)
-                .scale(pulse)
                 .background(
                     brush = Brush.radialGradient(
                         listOf(
@@ -299,7 +341,9 @@ fun HomeScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(
+            modifier = Modifier.height(40.dp)
+        )
 
         OutlinedTextField(
             value = input,
@@ -314,12 +358,14 @@ fun HomeScreen(
 
                 IconButton(
                     onClick = {
+
                         if (input.isNotBlank()) {
-                            onOpenChat(input)
+                            onSend(input)
                             input = ""
                         }
                     }
                 ) {
+
                     Icon(
                         Icons.Default.Send,
                         contentDescription = "Send"
@@ -330,7 +376,9 @@ fun HomeScreen(
             singleLine = true
         )
 
-        Spacer(modifier = Modifier.height(25.dp))
+        Spacer(
+            modifier = Modifier.height(25.dp)
+        )
 
         Text(
             text = "Quick actions",
@@ -339,7 +387,9 @@ fun HomeScreen(
             fontSize = 18.sp
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -370,7 +420,7 @@ fun HomeScreen(
 @Composable
 fun QuickAction(
     title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     modifier: Modifier
 ) {
 
@@ -392,7 +442,9 @@ fun QuickAction(
                 contentDescription = title
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(
+                modifier = Modifier.height(6.dp)
+            )
 
             Text(
                 text = title,
@@ -409,12 +461,9 @@ fun ChatScreen(
     onSend: (String) -> Unit
 ) {
 
-    var input by rememberSaveable {
+    var input by remember {
         mutableStateOf("")
     }
-
-    val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
 
     Column(
         modifier = modifier
@@ -449,7 +498,9 @@ fun ChatScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(
+                modifier = Modifier.width(12.dp)
+            )
 
             Column {
 
@@ -474,26 +525,18 @@ fun ChatScreen(
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            state = listState,
             contentPadding = PaddingValues(
                 vertical = 16.dp
             ),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
 
-            items(messages) { message ->
+            for (message in messages) {
 
-                MessageBubble(message)
-            }
-        }
+                item {
 
-        LaunchedEffect(messages.size) {
-
-            if (messages.isNotEmpty()) {
-
-                listState.animateScrollToItem(
-                    messages.lastIndex
-                )
+                    MessageBubble(message)
+                }
             }
         }
 
@@ -517,7 +560,9 @@ fun ChatScreen(
                 singleLine = true
             )
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(
+                modifier = Modifier.width(8.dp)
+            )
 
             FilledIconButton(
                 onClick = {
@@ -525,15 +570,7 @@ fun ChatScreen(
                     if (input.isNotBlank()) {
 
                         onSend(input)
-
                         input = ""
-
-                        scope.launch {
-
-                            listState.animateScrollToItem(
-                                messages.lastIndex
-                            )
-                        }
                     }
                 }
             ) {
@@ -554,20 +591,20 @@ fun MessageBubble(
 
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement =
-            if (message.isUser)
-                Arrangement.End
-            else
-                Arrangement.Start
+        horizontalArrangement = if (message.isUser) {
+            Arrangement.End
+        } else {
+            Arrangement.Start
+        }
     ) {
 
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color =
-                if (message.isUser)
-                    MaterialTheme.colorScheme.primary
-                else
-                    MaterialTheme.colorScheme.surfaceVariant
+            color = if (message.isUser) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            }
         ) {
 
             Text(
@@ -576,42 +613,48 @@ fun MessageBubble(
                     horizontal = 16.dp,
                     vertical = 11.dp
                 ),
-                color =
-                    if (message.isUser)
-                        MaterialTheme.colorScheme.onPrimary
-                    else
-                        MaterialTheme.colorScheme.onSurface,
+                color = if (message.isUser) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
                 fontSize = 15.sp
             )
         }
     }
 }
 
-fun orionReply(message: String): String {
+fun orionReply(
+    message: String
+): String {
 
-    val text = message.lowercase(Locale.getDefault()).trim()
+    val text = message
+        .lowercase(Locale.getDefault())
+        .trim()
 
     return when {
 
         text.contains("hello") ||
         text.contains("hi") ||
-        text.contains("hey") ->
+        text.contains("hey") -> {
             "Hello. I'm ORION. Nice to hear from you."
+        }
 
         text.contains("who are you") ||
-        text.contains("what are you") ->
+        text.contains("what are you") -> {
             "I'm ORION, your personal AI assistant."
+        }
 
-        text.contains("how are you") ->
+        text.contains("how are you") -> {
             "I'm operating normally and ready to help."
+        }
 
         text.contains("time") -> {
 
-            val formatter =
-                SimpleDateFormat(
-                    "hh:mm a",
-                    Locale.getDefault()
-                )
+            val formatter = SimpleDateFormat(
+                "hh:mm a",
+                Locale.getDefault()
+            )
 
             "The current time is ${formatter.format(Date())}."
         }
@@ -619,20 +662,17 @@ fun orionReply(message: String): String {
         text.contains("date") ||
         text.contains("today") -> {
 
-            val formatter =
-                SimpleDateFormat(
-                    "EEEE, dd MMMM yyyy",
-                    Locale.getDefault()
-                )
+            val formatter = SimpleDateFormat(
+                "EEEE, dd MMMM yyyy",
+                Locale.getDefault()
+            )
 
             "Today is ${formatter.format(Date())}."
         }
 
-        text == "clear chat" ->
-            "I can't clear the conversation yet, but that feature is coming."
-
-        else ->
+        else -> {
             "I understand: \"$message\". Full AI intelligence will be connected in a later update."
+        }
     }
 }
 
