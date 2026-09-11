@@ -1,43 +1,24 @@
 package com.bijoyism.orion
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Memory
-import androidx.compose.material.icons.filled.NotificationsNone
-import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.TaskAlt
-import androidx.compose.material3.Card
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -46,7 +27,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
+import androidx.core.content.ContextCompat
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -70,7 +51,7 @@ fun OrionTheme(
     content: @Composable () -> Unit
 ) {
     MaterialTheme(
-        colorScheme = androidx.compose.material3.darkColorScheme(
+        colorScheme = darkColorScheme(
             primary = Color(0xFFB8C9FF),
             onPrimary = Color(0xFF102E5C),
             secondary = Color(0xFFB8DDF5),
@@ -118,10 +99,7 @@ fun OrionApp() {
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
                     icon = {
-                        Icon(
-                            Icons.Default.Home,
-                            "Home"
-                        )
+                        Icon(Icons.Default.Home, "Home")
                     },
                     label = {
                         Text("Home")
@@ -132,10 +110,7 @@ fun OrionApp() {
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
                     icon = {
-                        Icon(
-                            Icons.Default.Chat,
-                            "Chat"
-                        )
+                        Icon(Icons.Default.Chat, "Chat")
                     },
                     label = {
                         Text("Chat")
@@ -146,10 +121,7 @@ fun OrionApp() {
                     selected = selectedTab == 2,
                     onClick = { selectedTab = 2 },
                     icon = {
-                        Icon(
-                            Icons.Default.Memory,
-                            "Memory"
-                        )
+                        Icon(Icons.Default.Memory, "Memory")
                     },
                     label = {
                         Text("Memory")
@@ -160,10 +132,7 @@ fun OrionApp() {
                     selected = selectedTab == 3,
                     onClick = { selectedTab = 3 },
                     icon = {
-                        Icon(
-                            Icons.Default.Settings,
-                            "Settings"
-                        )
+                        Icon(Icons.Default.Settings, "Settings")
                     },
                     label = {
                         Text("Settings")
@@ -182,10 +151,7 @@ fun OrionApp() {
                     if (text.isNotBlank()) {
 
                         messages = messages +
-                                ChatMessage(
-                                    text.trim(),
-                                    true
-                                )
+                                ChatMessage(text.trim(), true)
 
                         thinking = true
                         selectedTab = 1
@@ -211,10 +177,7 @@ fun OrionApp() {
                     if (text.isNotBlank() && !thinking) {
 
                         messages = messages +
-                                ChatMessage(
-                                    text.trim(),
-                                    true
-                                )
+                                ChatMessage(text.trim(), true)
 
                         thinking = true
                     }
@@ -233,14 +196,11 @@ fun OrionApp() {
         }
     }
 
-    LaunchedEffect(
-        thinking,
-        messages.size
-    ) {
+    LaunchedEffect(thinking) {
 
         if (thinking) {
 
-            delay(700)
+            kotlinx.coroutines.delay(700)
 
             val lastMessage = messages.lastOrNull()
 
@@ -309,9 +269,7 @@ fun HomeScreen(
                 )
             }
 
-            IconButton(
-                onClick = {}
-            ) {
+            IconButton(onClick = {}) {
 
                 Icon(
                     Icons.Default.NotificationsNone,
@@ -500,6 +458,130 @@ fun ChatScreen(
         mutableStateOf("")
     }
 
+    var listening by remember {
+        mutableStateOf(false)
+    }
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    var speechRecognizer by remember {
+        mutableStateOf<SpeechRecognizer?>(null)
+    }
+
+    val startListening: () -> Unit = {
+
+        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+            input = "Speech recognition is not available on this device."
+        } else {
+
+            if (speechRecognizer == null) {
+
+                speechRecognizer =
+                    SpeechRecognizer.createSpeechRecognizer(context)
+
+                speechRecognizer?.setRecognitionListener(
+                    object : RecognitionListener {
+
+                        override fun onReadyForSpeech(
+                            params: Bundle?
+                        ) {
+                            listening = true
+                        }
+
+                        override fun onBeginningOfSpeech() {
+                            listening = true
+                        }
+
+                        override fun onRmsChanged(
+                            rmsdB: Float
+                        ) {
+                        }
+
+                        override fun onBufferReceived(
+                            buffer: ByteArray?
+                        ) {
+                        }
+
+                        override fun onEndOfSpeech() {
+                            listening = false
+                        }
+
+                        override fun onError(
+                            error: Int
+                        ) {
+                            listening = false
+                        }
+
+                        override fun onResults(
+                            results: Bundle?
+                        ) {
+
+                            val matches =
+                                results?.getStringArrayList(
+                                    SpeechRecognizer.RESULTS_RECOGNITION
+                                )
+
+                            if (!matches.isNullOrEmpty()) {
+                                input = matches[0]
+                            }
+
+                            listening = false
+                        }
+
+                        override fun onPartialResults(
+                            partialResults: Bundle?
+                        ) {
+                        }
+
+                        override fun onEvent(
+                            eventType: Int,
+                            params: Bundle?
+                        ) {
+                        }
+                    }
+                )
+            }
+
+            val intent = Intent(
+                RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+            )
+
+            intent.putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
+
+            intent.putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE,
+                Locale.getDefault()
+            )
+
+            intent.putExtra(
+                RecognizerIntent.EXTRA_PARTIAL_RESULTS,
+                false
+            )
+
+            speechRecognizer?.startListening(intent)
+        }
+    }
+
+    val permissionLauncher =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+
+            if (granted) {
+                startListening()
+            }
+        }
+
+    DisposableEffect(Unit) {
+
+        onDispose {
+            speechRecognizer?.destroy()
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -548,7 +630,13 @@ fun ChatScreen(
                 )
 
                 Text(
-                    if (thinking) "Thinking..." else "Online",
+                    if (thinking) {
+                        "Thinking..."
+                    } else if (listening) {
+                        "Listening..."
+                    } else {
+                        "Online"
+                    },
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -610,6 +698,39 @@ fun ChatScreen(
                 modifier = Modifier.weight(1f),
                 placeholder = {
                     Text("Message ORION...")
+                },
+                leadingIcon = {
+
+                    IconButton(
+                        onClick = {
+
+                            if (
+                                ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.RECORD_AUDIO
+                                ) == PackageManager.PERMISSION_GRANTED
+                            ) {
+
+                                startListening()
+
+                            } else {
+
+                                permissionLauncher.launch(
+                                    Manifest.permission.RECORD_AUDIO
+                                )
+                            }
+                        }
+                    ) {
+
+                        Icon(
+                            if (listening) {
+                                Icons.Default.MicOff
+                            } else {
+                                Icons.Default.Mic
+                            },
+                            contentDescription = "Voice input"
+                        )
+                    }
                 },
                 shape = RoundedCornerShape(26.dp),
                 singleLine = true
@@ -700,7 +821,8 @@ fun ThinkingBubble() {
 
 fun greeting(): String {
 
-    val hour = Calendar.getInstance()
+    val hour = Calendar
+        .getInstance()
         .get(Calendar.HOUR_OF_DAY)
 
     return when {
