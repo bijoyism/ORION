@@ -778,17 +778,10 @@ fun ChatScreen(
         ) {
 
             items(
-
-                items =
-                    messages,
-
-                key = { message ->
-                    message.hashCode()
-                }
-            ) { message ->
-
-                ChatBubble(message)
-            }
+    items = messages
+) { message ->
+    ChatBubble(message)
+}
 
 
             if (thinking) {
