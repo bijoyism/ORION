@@ -3,6 +3,8 @@ package com.bijoyism.orion
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.speech.RecognizerIntent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -1160,7 +1162,7 @@ private fun askOrion(
                 }
 
 
-            runOnUiThread {
+            Handler(Looper.getMainLooper()).post {
 
                 if (responseCode in 200..299) {
 
@@ -1188,7 +1190,7 @@ private fun askOrion(
 
         } catch (_: Exception) {
 
-            runOnUiThread {
+            Handler(Looper.getMainLooper()).post {
 
                 callback(
 
