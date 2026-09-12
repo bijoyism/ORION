@@ -3,6 +3,8 @@ package com.bijoyism.orion
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.speech.RecognizerIntent
 
 import androidx.activity.ComponentActivity
@@ -10,247 +12,130 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Settings
 
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.darkColorScheme
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 import org.json.JSONObject
 
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Calendar
 import java.util.Locale
+import java.util.concurrent.Executors
 
 
 private const val ORION_API_URL =
     "https://orion-api.alsoknownasbijoy.workers.dev/"
 
 
+private val OrionBackground =
+    Color(0xFF0D0E13)
+
+private val OrionSurface =
+    Color(0xFF202128)
+
+private val OrionPrimary =
+    Color(0xFFB7C4FF)
+
+private val OrionText =
+    Color(0xFFF2F1F7)
+
+
 class MainActivity : ComponentActivity() {
 
-    private var voiceResult: ((String) -> Unit)? = null
+    private val executor =
+        Executors.newSingleThreadExecutor()
+
+    private val mainHandler =
+        Handler(Looper.getMainLooper())
+
+    private var voiceResultCallback:
+        ((String) -> Unit)? = null
+
 
     private val speechLauncher =
         registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) { result ->
 
-            if (result.resultCode == Activity.RESULT_OK) {
+            if (
+                result.resultCode ==
+                Activity.RESULT_OK
+            ) {
 
-                val data = result.data
+                val data =
+                    result.data
 
                 val results =
                     data?.getStringArrayListExtra(
                         RecognizerIntent.EXTRA_RESULTS
                     )
 
-                if (!results.isNullOrEmpty()) {
+                val text =
+                    results?.firstOrNull()
 
-                    voiceResult?.invoke(
-                        results[0]
+                if (!text.isNullOrBlank()) {
+
+                    voiceResultCallback?.invoke(
+                        text
                     )
                 }
             }
         }
-
-
-    fun startVoiceInput(
-        onResult: (String) -> Unit
-    ) {
-
-        voiceResult = onResult
-
-        val intent =
-            Intent(
-                RecognizerIntent.ACTION_RECOGNIZE_SPEECH
-            )
-
-        intent.putExtra(
-            RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-        )
-
-        intent.putExtra(
-            RecognizerIntent.EXTRA_LANGUAGE,
-            Locale.getDefault()
-        )
-
-        intent.putExtra(
-            RecognizerIntent.EXTRA_PROMPT,
-            "Speak to ORION"
-        )
-
-        speechLauncher.launch(intent)
-    }
-
-
-    fun askOrion(
-        message: String,
-        onResult: (String) -> Unit
-    ) {
-
-        Thread {
-
-            try {
-
-                val url =
-                    URL(ORION_API_URL)
-
-                val connection =
-                    url.openConnection()
-                            as HttpURLConnection
-
-                connection.requestMethod = "POST"
-                connection.doOutput = true
-
-                connection.connectTimeout =
-                    15000
-
-                connection.readTimeout =
-                    30000
-
-                connection.setRequestProperty(
-                    "Content-Type",
-                    "application/json"
-                )
-
-                connection.setRequestProperty(
-                    "Accept",
-                    "application/json"
-                )
-
-
-                val requestBody =
-                    JSONObject()
-                        .put(
-                            "message",
-                            message
-                        )
-                        .toString()
-
-
-                connection.outputStream.use { output ->
-
-                    output.write(
-                        requestBody.toByteArray(
-                            Charsets.UTF_8
-                        )
-                    )
-                }
-
-
-                val responseCode =
-                    connection.responseCode
-
-
-                val stream =
-                    if (responseCode in 200..299) {
-
-                        connection.inputStream
-
-                    } else {
-
-                        connection.errorStream
-                    }
-
-
-                val responseText =
-                    BufferedReader(
-                        InputStreamReader(stream)
-                    ).use { reader ->
-
-                        reader.readText()
-                    }
-
-
-                connection.disconnect()
-
-
-                if (responseCode !in 200..299) {
-
-                    val errorMessage =
-
-                        try {
-
-                            val json =
-                                JSONObject(
-                                    responseText
-                                )
-
-                            json.optString(
-                                "error",
-                                "ORION backend error."
-                            )
-
-                        } catch (_: Exception) {
-
-                            "ORION backend error."
-                        }
-
-
-                    runOnUiThread {
-
-                        onResult(
-
-                            "Sorry, I couldn't connect right now.\n\n" +
-                                    errorMessage
-                        )
-                    }
-
-                    return@Thread
-                }
-
-
-                val json =
-                    JSONObject(
-                        responseText
-                    )
-
-
-                val reply =
-                    json.optString(
-                        "reply",
-                        "I didn't receive a response."
-                    )
-
-
-                runOnUiThread {
-
-                    onResult(reply)
-                }
-
-
-            } catch (_: Exception) {
-
-                runOnUiThread {
-
-                    onResult(
-
-                        "I couldn't connect to ORION.\n\n" +
-                                "Please check your internet connection."
-                    )
-                }
-            }
-
-        }.start()
-    }
 
 
     override fun onCreate(
@@ -260,7 +145,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(
             savedInstanceState
         )
-
 
         setContent {
 
@@ -273,21 +157,52 @@ class MainActivity : ComponentActivity() {
                         startVoiceInput(
                             callback
                         )
-                    },
-
-                    onAskAi = { message, callback ->
-
-                        askOrion(
-                            message,
-                            callback
-                        )
                     }
                 )
             }
         }
     }
-}
 
+
+    private fun startVoiceInput(
+        callback: (String) -> Unit
+    ) {
+
+        voiceResultCallback =
+            callback
+
+        val intent =
+            Intent(
+                RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+            ).apply {
+
+                putExtra(
+                    RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                )
+
+                putExtra(
+                    RecognizerIntent.EXTRA_LANGUAGE,
+                    Locale.getDefault()
+                )
+
+                putExtra(
+                    RecognizerIntent.EXTRA_PROMPT,
+                    "Speak to ORION"
+                )
+            }
+
+        speechLauncher.launch(intent)
+    }
+
+
+    override fun onDestroy() {
+
+        executor.shutdown()
+
+        super.onDestroy()
+    }
+}
 
 
 @Composable
@@ -301,22 +216,19 @@ fun OrionTheme(
             darkColorScheme(
 
                 primary =
-                    Color(0xFFB8C9FF),
-
-                onPrimary =
-                    Color(0xFF102E5C),
-
-                secondary =
-                    Color(0xFFB8DDF5),
+                    OrionPrimary,
 
                 background =
-                    Color(0xFF0D0F14),
+                    OrionBackground,
 
                 surface =
-                    Color(0xFF151820),
+                    OrionSurface,
 
-                surfaceVariant =
-                    Color(0xFF20232C)
+                onBackground =
+                    OrionText,
+
+                onSurface =
+                    OrionText
             ),
 
         content = content
@@ -324,126 +236,128 @@ fun OrionTheme(
 }
 
 
-
 data class ChatMessage(
 
     val text: String,
 
-    val isUser: Boolean
+    val fromUser: Boolean
 )
-
 
 
 @Composable
 fun OrionApp(
 
     onVoiceInput:
-        ((String) -> Unit) -> Unit,
-
-    onAskAi:
-        (String, (String) -> Unit) -> Unit
+        ((String) -> Unit) -> Unit
 ) {
 
-    var selectedTab by remember {
+    var selectedScreen by
+        rememberSaveable {
 
-        mutableIntStateOf(0)
-    }
+            mutableIntStateOf(0)
+        }
 
 
-    var messages by remember {
+    val messages =
+        remember {
 
-        mutableStateOf(
+            mutableStateListOf<ChatMessage>()
+        }
 
-            listOf(
 
-                ChatMessage(
+    if (messages.isEmpty()) {
 
+        messages.add(
+
+            ChatMessage(
+
+                text =
                     "Hello. I'm ORION. How can I help you?",
 
-                    false
-                )
+                fromUser = false
             )
         )
     }
 
 
-    var thinking by remember {
+    Surface(
 
-        mutableStateOf(false)
-    }
+        modifier =
+            Modifier.fillMaxSize(),
 
-
-    fun sendMessage(
-        text: String
+        color =
+            OrionBackground
     ) {
 
-        if (
-            text.isBlank() ||
-            thinking
+        Column(
+
+            modifier =
+                Modifier.fillMaxSize()
         ) {
 
-            return
-        }
+            Box(
 
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+            ) {
 
-        val cleanText =
-            text.trim()
+                when (selectedScreen) {
 
+                    0 -> {
 
-        messages =
+                        HomeScreen(
 
-            messages +
+                            onOpenChat = {
 
-                    ChatMessage(
-
-                        cleanText,
-
-                        true
-                    )
-
-
-        thinking = true
-
-
-        onAskAi(
-
-            cleanText
-
-        ) { reply ->
-
-
-            messages =
-
-                messages +
-
-                        ChatMessage(
-
-                            reply,
-
-                            false
+                                selectedScreen = 1
+                            }
                         )
+                    }
 
 
-            thinking = false
-        }
-    }
+                    1 -> {
+
+                        ChatScreen(
+
+                            messages =
+                                messages,
+
+                            onVoiceInput =
+                                onVoiceInput
+                        )
+                    }
 
 
+                    2 -> {
 
-    Scaffold(
+                        MemoryScreen()
+                    }
 
-        bottomBar = {
 
-            NavigationBar {
+                    3 -> {
+
+                        SettingsScreen()
+                    }
+                }
+            }
+
+
+            NavigationBar(
+
+                containerColor =
+                    Color(0xFF202127)
+            ) {
 
                 NavigationBarItem(
 
                     selected =
-                        selectedTab == 0,
+                        selectedScreen == 0,
 
                     onClick = {
 
-                        selectedTab = 0
+                        selectedScreen = 0
                     },
 
                     icon = {
@@ -452,7 +366,8 @@ fun OrionApp(
 
                             Icons.Default.Home,
 
-                            "Home"
+                            contentDescription =
+                                "Home"
                         )
                     },
 
@@ -466,11 +381,11 @@ fun OrionApp(
                 NavigationBarItem(
 
                     selected =
-                        selectedTab == 1,
+                        selectedScreen == 1,
 
                     onClick = {
 
-                        selectedTab = 1
+                        selectedScreen = 1
                     },
 
                     icon = {
@@ -479,7 +394,8 @@ fun OrionApp(
 
                             Icons.Default.Chat,
 
-                            "Chat"
+                            contentDescription =
+                                "Chat"
                         )
                     },
 
@@ -493,11 +409,11 @@ fun OrionApp(
                 NavigationBarItem(
 
                     selected =
-                        selectedTab == 2,
+                        selectedScreen == 2,
 
                     onClick = {
 
-                        selectedTab = 2
+                        selectedScreen = 2
                     },
 
                     icon = {
@@ -506,7 +422,8 @@ fun OrionApp(
 
                             Icons.Default.Memory,
 
-                            "Memory"
+                            contentDescription =
+                                "Memory"
                         )
                     },
 
@@ -520,11 +437,11 @@ fun OrionApp(
                 NavigationBarItem(
 
                     selected =
-                        selectedTab == 3,
+                        selectedScreen == 3,
 
                     onClick = {
 
-                        selectedTab = 3
+                        selectedScreen = 3
                     },
 
                     icon = {
@@ -533,7 +450,8 @@ fun OrionApp(
 
                             Icons.Default.Settings,
 
-                            "Settings"
+                            contentDescription =
+                                "Settings"
                         )
                     },
 
@@ -544,549 +462,262 @@ fun OrionApp(
                 )
             }
         }
-
-    ) { padding ->
-
-
-        when (selectedTab) {
-
-
-            0 -> {
-
-                HomeScreen(
-
-                    modifier =
-                        Modifier.padding(
-                            padding
-                        ),
-
-                    onSend = { text ->
-
-                        sendMessage(text)
-
-                        selectedTab = 1
-                    }
-                )
-            }
-
-
-            1 -> {
-
-                ChatScreen(
-
-                    modifier =
-                        Modifier.padding(
-                            padding
-                        ),
-
-                    messages =
-                        messages,
-
-                    thinking =
-                        thinking,
-
-                    onClear = {
-
-                        messages =
-
-                            listOf(
-
-                                ChatMessage(
-
-                                    "Chat cleared. How can I help?",
-
-                                    false
-                                )
-                            )
-                    },
-
-                    onSend = { text ->
-
-                        sendMessage(text)
-                    },
-
-                    onVoiceInput =
-                        onVoiceInput
-                )
-            }
-
-
-            2 -> {
-
-                SimpleScreen(
-
-                    "Memory",
-
-                    Modifier.padding(
-                        padding
-                    )
-                )
-            }
-
-
-            3 -> {
-
-                SimpleScreen(
-
-                    "Settings",
-
-                    Modifier.padding(
-                        padding
-                    )
-                )
-            }
-        }
     }
 }
-
 
 
 @Composable
 fun HomeScreen(
 
-    modifier: Modifier = Modifier,
-
-    onSend: (String) -> Unit
+    onOpenChat: () -> Unit
 ) {
 
-    var input by remember {
+    val hour =
+        Calendar
+            .getInstance()
+            .get(
+                Calendar.HOUR_OF_DAY
+            )
 
-        mutableStateOf("")
-    }
+
+    val greeting =
+
+        when {
+
+            hour < 12 ->
+                "Good morning"
+
+            hour < 17 ->
+                "Good afternoon"
+
+            else ->
+                "Good evening"
+        }
 
 
     Column(
 
-        modifier = modifier
-
-            .fillMaxSize()
-
-            .background(
-
-                Brush.verticalGradient(
-
-                    listOf(
-
-                        Color(0xFF101521),
-
-                        Color(0xFF0D0F14)
-                    )
-                )
-            )
-
-            .padding(
-                horizontal = 20.dp
-            ),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(24.dp),
 
         horizontalAlignment =
             Alignment.CenterHorizontally
     ) {
 
-
         Spacer(
-
             modifier =
-                Modifier.height(28.dp)
-        )
-
-
-        Row(
-
-            modifier =
-                Modifier.fillMaxWidth(),
-
-            verticalAlignment =
-                Alignment.CenterVertically
-        ) {
-
-
-            Column(
-
-                modifier =
-                    Modifier.weight(1f)
-            ) {
-
-                Text(
-
-                    "ORION",
-
-                    fontSize = 25.sp,
-
-                    fontWeight =
-                        FontWeight.Bold
-                )
-
-
-                Text(
-
-                    "Your personal AI assistant",
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
-
-                    fontSize = 13.sp
-                )
-            }
-
-
-            IconButton(
-
-                onClick = {}
-            ) {
-
-                Icon(
-
-                    Icons.Default.NotificationsNone,
-
-                    "Notifications"
-                )
-            }
-        }
-
-
-        Spacer(
-
-            modifier =
-                Modifier.height(38.dp)
+                Modifier.height(40.dp)
         )
 
 
         Text(
 
-            greeting(),
+            text =
+                "ORION",
 
-            fontSize = 16.sp,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant
-        )
-
-
-        Text(
-
-            "How can I help?",
-
-            fontSize = 30.sp,
+            fontSize =
+                32.sp,
 
             fontWeight =
                 FontWeight.Bold
         )
 
 
-        Spacer(
+        Text(
 
+            text =
+                greeting,
+
+            fontSize =
+                18.sp,
+
+            color =
+                OrionPrimary
+        )
+
+
+        Spacer(
             modifier =
-                Modifier.height(35.dp)
+                Modifier.height(50.dp)
         )
 
 
         Box(
 
-            modifier = Modifier
-
-                .size(190.dp)
-
-                .background(
-
-                    Brush.radialGradient(
-
-                        listOf(
-
-                            Color(0xFF6D8DFF),
-
-                            Color(0xFF344C9A),
-
-                            Color.Transparent
+            modifier =
+                Modifier
+                    .size(170.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            listOf(
+                                OrionPrimary,
+                                Color(0xFF5268C4),
+                                Color.Transparent
+                            )
                         )
                     ),
 
-                    CircleShape
+            contentAlignment =
+                Alignment.Center
+        ) {
+
+            Text(
+
+                text =
+                    "✦",
+
+                fontSize =
+                    70.sp,
+
+                color =
+                    Color(0xFF101117)
+            )
+        }
+
+
+        Spacer(
+            modifier =
+                Modifier.height(35.dp)
+        )
+
+
+        Text(
+
+            text =
+                "How can I help you?",
+
+            fontSize =
+                22.sp,
+
+            fontWeight =
+                FontWeight.Medium
+        )
+
+
+        Spacer(
+            modifier =
+                Modifier.height(25.dp)
+        )
+
+
+        Button(
+            onClick =
+                onOpenChat
+        ) {
+
+            Text(
+                "Chat with ORION"
+            )
+        }
+
+
+        Spacer(
+            modifier =
+                Modifier.height(20.dp)
+        )
+
+
+        Row(
+
+            horizontalArrangement =
+                Arrangement.spacedBy(12.dp)
+        ) {
+
+            QuickAction(
+                "Study"
+            )
+
+            QuickAction(
+                "Notes"
+            )
+
+            QuickAction(
+                "Tasks"
+            )
+        }
+    }
+}
+
+
+@Composable
+fun QuickAction(
+    text: String
+) {
+
+    Surface(
+
+        modifier =
+            Modifier.height(48.dp),
+
+        shape =
+            RoundedCornerShape(24.dp),
+
+        color =
+            OrionSurface
+    ) {
+
+        Box(
+
+            modifier =
+                Modifier.padding(
+                    horizontal = 18.dp
                 ),
 
             contentAlignment =
                 Alignment.Center
         ) {
 
-
-            Box(
-
-                modifier = Modifier
-
-                    .size(115.dp)
-
-                    .background(
-
-                        MaterialTheme
-                            .colorScheme
-                            .primary,
-
-                        CircleShape
-                    ),
-
-                contentAlignment =
-                    Alignment.Center
-            ) {
-
-                Text(
-
-                    "✦",
-
-                    fontSize = 48.sp,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onPrimary
-                )
-            }
-        }
-
-
-        Spacer(
-
-            modifier =
-                Modifier.height(40.dp)
-        )
-
-
-        OutlinedTextField(
-
-            value = input,
-
-            onValueChange = {
-
-                input = it
-            },
-
-            modifier =
-                Modifier.fillMaxWidth(),
-
-            placeholder = {
-
-                Text(
-                    "Ask ORION anything..."
-                )
-            },
-
-            trailingIcon = {
-
-                IconButton(
-
-                    onClick = {
-
-                        if (
-                            input.isNotBlank()
-                        ) {
-
-                            onSend(input)
-
-                            input = ""
-                        }
-                    }
-                ) {
-
-                    Icon(
-
-                        Icons.Default.Send,
-
-                        "Send"
-                    )
-                }
-            },
-
-            shape =
-                RoundedCornerShape(28.dp),
-
-            singleLine = true
-        )
-
-
-        Spacer(
-
-            modifier =
-                Modifier.height(25.dp)
-        )
-
-
-        Text(
-
-            "Quick actions",
-
-            modifier =
-                Modifier.fillMaxWidth(),
-
-            fontWeight =
-                FontWeight.SemiBold,
-
-            fontSize = 18.sp
-        )
-
-
-        Spacer(
-
-            modifier =
-                Modifier.height(12.dp)
-        )
-
-
-        Row(
-
-            modifier =
-                Modifier.fillMaxWidth(),
-
-            horizontalArrangement =
-                Arrangement.spacedBy(10.dp)
-        ) {
-
-
-            QuickAction(
-
-                "Study",
-
-                Icons.Default.School,
-
-                Modifier.weight(1f)
-            )
-
-
-            QuickAction(
-
-                "Notes",
-
-                Icons.Default.EditNote,
-
-                Modifier.weight(1f)
-            )
-
-
-            QuickAction(
-
-                "Tasks",
-
-                Icons.Default.TaskAlt,
-
-                Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-
-
-@Composable
-fun QuickAction(
-
-    title: String,
-
-    icon: ImageVector,
-
-    modifier: Modifier
-) {
-
-    Card(
-
-        modifier =
-            modifier.height(95.dp),
-
-        shape =
-            RoundedCornerShape(24.dp)
-    ) {
-
-
-        Column(
-
-            modifier = Modifier
-
-                .fillMaxSize()
-
-                .padding(12.dp),
-
-            verticalArrangement =
-                Arrangement.Center,
-
-            horizontalAlignment =
-                Alignment.CenterHorizontally
-        ) {
-
-
-            Icon(
-
-                icon,
-
-                title
-            )
-
-
-            Spacer(
-
-                modifier =
-                    Modifier.height(6.dp)
-            )
-
-
             Text(
-
-                title,
-
-                fontSize = 13.sp
+                text
             )
         }
     }
 }
-
 
 
 @Composable
 fun ChatScreen(
 
-    modifier: Modifier = Modifier,
-
-    messages: List<ChatMessage>,
-
-    thinking: Boolean,
-
-    onClear: () -> Unit,
-
-    onSend: (String) -> Unit,
+    messages:
+        MutableList<ChatMessage>,
 
     onVoiceInput:
         ((String) -> Unit) -> Unit
 ) {
 
-    var input by remember {
+    var input by
+        rememberSaveable {
 
-        mutableStateOf("")
-    }
+            mutableStateOf("")
+        }
+
+
+    var thinking by
+        rememberSaveable {
+
+            mutableStateOf(false)
+        }
 
 
     Column(
 
-        modifier = modifier
-
-            .fillMaxSize()
-
-            .background(
-                Color(0xFF0D0F14)
-            )
+        modifier =
+            Modifier.fillMaxSize()
     ) {
 
 
         Row(
 
-            modifier = Modifier
-
-                .fillMaxWidth()
-
-                .padding(
-
-                    horizontal = 20.dp,
-
-                    vertical = 18.dp
-                ),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = 20.dp,
+                        vertical = 18.dp
+                    ),
 
             verticalAlignment =
                 Alignment.CenterVertically
@@ -1095,18 +726,13 @@ fun ChatScreen(
 
             Box(
 
-                modifier = Modifier
-
-                    .size(42.dp)
-
-                    .background(
-
-                        MaterialTheme
-                            .colorScheme
-                            .primary,
-
-                        CircleShape
-                    ),
+                modifier =
+                    Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(
+                            OrionPrimary
+                        ),
 
                 contentAlignment =
                     Alignment.Center
@@ -1114,22 +740,21 @@ fun ChatScreen(
 
                 Text(
 
-                    "✦",
+                    text =
+                        "✦",
+
+                    fontSize =
+                        30.sp,
 
                     color =
-                        MaterialTheme
-                            .colorScheme
-                            .onPrimary,
-
-                    fontSize = 22.sp
+                        Color(0xFF101117)
                 )
             }
 
 
             Spacer(
-
                 modifier =
-                    Modifier.width(12.dp)
+                    Modifier.width(16.dp)
             )
 
 
@@ -1141,9 +766,11 @@ fun ChatScreen(
 
                 Text(
 
-                    "ORION",
+                    text =
+                        "ORION",
 
-                    fontSize = 20.sp,
+                    fontSize =
+                        24.sp,
 
                     fontWeight =
                         FontWeight.Bold
@@ -1152,50 +779,58 @@ fun ChatScreen(
 
                 Text(
 
-                    if (thinking)
-                        "Thinking..."
-                    else
-                        "Online",
+                    text =
 
-                    fontSize = 12.sp,
+                        if (thinking)
+                            "Thinking..."
+                        else
+                            "Online",
 
                     color =
-                        MaterialTheme
-                            .colorScheme
-                            .primary
+                        OrionPrimary
                 )
             }
 
 
             IconButton(
 
-                onClick = onClear
+                onClick = {
+
+                    messages.clear()
+
+                    messages.add(
+
+                        ChatMessage(
+
+                            text =
+                                "Chat cleared. How can I help?",
+
+                            fromUser = false
+                        )
+                    )
+                }
             ) {
 
                 Icon(
 
-                    Icons.Default.DeleteOutline,
+                    Icons.Default.Delete,
 
-                    "Clear chat"
+                    contentDescription =
+                        "Clear chat"
                 )
             }
         }
 
 
-        HorizontalDivider()
-
-
         LazyColumn(
 
-            modifier = Modifier
-
-                .weight(1f)
-
-                .fillMaxWidth()
-
-                .padding(
-                    horizontal = 16.dp
-                ),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = 16.dp
+                    ),
 
             verticalArrangement =
                 Arrangement.spacedBy(10.dp),
@@ -1206,10 +841,9 @@ fun ChatScreen(
                 )
         ) {
 
-
             items(messages) { message ->
 
-                MessageBubble(
+                ChatBubble(
                     message
                 )
             }
@@ -1219,7 +853,16 @@ fun ChatScreen(
 
                 item {
 
-                    ThinkingBubble()
+                    ChatBubble(
+
+                        ChatMessage(
+
+                            text =
+                                "ORION is thinking...",
+
+                            fromUser = false
+                        )
+                    )
                 }
             }
         }
@@ -1227,11 +870,14 @@ fun ChatScreen(
 
         Row(
 
-            modifier = Modifier
-
-                .fillMaxWidth()
-
-                .padding(12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = 12.dp,
+                        vertical = 10.dp
+                    )
+                    .navigationBarsPadding(),
 
             verticalAlignment =
                 Alignment.CenterVertically
@@ -1240,7 +886,8 @@ fun ChatScreen(
 
             OutlinedTextField(
 
-                value = input,
+                value =
+                    input,
 
                 onValueChange = {
 
@@ -1274,232 +921,301 @@ fun ChatScreen(
 
                             Icons.Default.Mic,
 
-                            "Voice input"
+                            contentDescription =
+                                "Voice input"
                         )
                     }
                 },
 
-                shape =
-                    RoundedCornerShape(26.dp),
+                singleLine = true,
 
-                singleLine = true
+                shape =
+                    RoundedCornerShape(
+                        30.dp
+                    )
             )
 
 
             Spacer(
-
                 modifier =
                     Modifier.width(8.dp)
             )
 
 
-            FilledIconButton(
+            IconButton(
 
                 onClick = {
 
+                    val text =
+                        input.trim()
+
                     if (
-                        input.isNotBlank() &&
+                        text.isNotEmpty() &&
                         !thinking
                     ) {
 
-                        onSend(input)
+                        messages.add(
+
+                            ChatMessage(
+
+                                text =
+                                    text,
+
+                                fromUser =
+                                    true
+                            )
+                        )
 
                         input = ""
+
+                        thinking = true
+
+
+                        askOrion(
+
+                            text = text
+
+                        ) { reply ->
+
+                            messages.add(
+
+                                ChatMessage(
+
+                                    text =
+                                        reply,
+
+                                    fromUser =
+                                        false
+                                )
+                            )
+
+                            thinking = false
+                        }
                     }
+                },
+
+      private fun askOrion(
+    text: String,
+    onResult: (String) -> Unit
+) {
+
+    Thread {
+
+        try {
+
+            val url = URL(
+                ORION_API_URL
+            )
+
+            val connection =
+                url.openConnection() as HttpURLConnection
+
+            connection.requestMethod = "POST"
+
+            connection.connectTimeout = 15000
+            connection.readTimeout = 30000
+
+            connection.doOutput = true
+
+            connection.setRequestProperty(
+                "Content-Type",
+                "application/json"
+            )
+
+            connection.setRequestProperty(
+                "Accept",
+                "application/json"
+            )
+
+            val requestJson =
+                JSONObject().apply {
+
+                    put(
+                        "message",
+                        text
+                    )
                 }
-            ) {
 
-                Icon(
+            connection.outputStream.use { output ->
 
-                    Icons.Default.Send,
+                output.write(
+                    requestJson
+                        .toString()
+                        .toByteArray(Charsets.UTF_8)
+                )
+            }
 
-                    "Send"
+            val responseCode =
+                connection.responseCode
+
+            val stream =
+                if (responseCode in 200..299) {
+                    connection.inputStream
+                } else {
+                    connection.errorStream
+                }
+
+            val responseText =
+                stream
+                    ?.bufferedReader()
+                    ?.use {
+                        it.readText()
+                    }
+                    ?: ""
+
+            connection.disconnect()
+
+            if (responseCode !in 200..299) {
+
+                mainHandler.post {
+
+                    onResult(
+                        "ORION returned an error.\n\n$responseText"
+                    )
+                }
+
+                return@Thread
+            }
+
+            val reply = try {
+
+                val json =
+                    JSONObject(responseText)
+
+                when {
+
+                    json.has("reply") ->
+                        json.optString("reply")
+
+                    json.has("response") ->
+                        json.optString("response")
+
+                    json.has("message") ->
+                        json.optString("message")
+
+                    else ->
+                        responseText
+                }
+
+            } catch (_: Exception) {
+
+                responseText
+            }
+
+            mainHandler.post {
+
+                onResult(
+
+                    if (reply.isBlank()) {
+                        "I didn't receive a response."
+                    } else {
+                        reply
+                    }
+                )
+            }
+
+        } catch (_: Exception) {
+
+            mainHandler.post {
+
+                onResult(
+                    "I couldn't connect to ORION.\n\n" +
+                            "Please check your internet connection."
                 )
             }
         }
-    }
+
+    }.start()
 }
 
 
-
 @Composable
-fun MessageBubble(
+fun MemoryScreen() {
 
-    message: ChatMessage
-) {
-
-    Row(
+    Column(
 
         modifier =
-            Modifier.fillMaxWidth(),
-
-        horizontalArrangement =
-
-            if (message.isUser)
-
-                Arrangement.End
-
-            else
-
-                Arrangement.Start
+            Modifier
+                .fillMaxSize()
+                .padding(24.dp)
     ) {
 
+        Text(
+            text = "Memory",
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Bold
+        )
 
-        Surface(
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
 
-            color =
+        Text(
+            text =
+                "ORION's memory system will appear here.",
+            color = Color.LightGray,
+            fontSize = 16.sp
+        )
+    }
+}
 
-                if (message.isUser)
 
-                    MaterialTheme
-                        .colorScheme
-                        .primary
+@Composable
+fun SettingsScreen() {
 
-                else
+    Column(
 
-                    MaterialTheme
-                        .colorScheme
-                        .surfaceVariant,
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+    ) {
 
-            shape =
-                RoundedCornerShape(18.dp)
+        Text(
+            text = "Settings",
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
+
+        Text(
+            text = "ORION",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Medium
+        )
+
+        Spacer(
+            modifier = Modifier.height(8.dp)
+        )
+
+        Text(
+            text = "Version 0.5",
+            color = Color.LightGray
+        )
+
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
+
+        TextButton(
+            onClick = {}
         ) {
-
-
-            Text(
-
-                message.text,
-
-                modifier = Modifier
-
-                    .widthIn(
-                        max = 300.dp
-                    )
-
-                    .padding(
-
-                        horizontal = 16.dp,
-
-                        vertical = 12.dp
-                    ),
-
-                color =
-
-                    if (message.isUser)
-
-                        MaterialTheme
-                            .colorScheme
-                            .onPrimary
-
-                    else
-
-                        MaterialTheme
-                            .colorScheme
-                            .onSurface,
-
-                fontSize = 15.sp
-            )
+            Text("AI settings")
         }
-    }
-}
 
+        TextButton(
+            onClick = {}
+        ) {
+            Text("Voice settings")
+        }
 
-
-@Composable
-fun ThinkingBubble() {
-
-    Surface(
-
-        color =
-            MaterialTheme
-                .colorScheme
-                .surfaceVariant,
-
-        shape =
-            RoundedCornerShape(18.dp)
-    ) {
-
-        Text(
-
-            "ORION is thinking...",
-
-            modifier =
-                Modifier.padding(
-
-                    horizontal = 16.dp,
-
-                    vertical = 12.dp
-                ),
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
-
-            fontSize = 14.sp
-        )
-    }
-}
-
-
-
-@Composable
-fun SimpleScreen(
-
-    title: String,
-
-    modifier: Modifier = Modifier
-) {
-
-    Box(
-
-        modifier = modifier
-
-            .fillMaxSize()
-
-            .background(
-                Color(0xFF0D0F14)
-            ),
-
-        contentAlignment =
-            Alignment.Center
-    ) {
-
-        Text(
-
-            title,
-
-            fontSize = 28.sp,
-
-            fontWeight =
-                FontWeight.Bold
-        )
-    }
-}
-
-
-
-fun greeting(): String {
-
-    val hour =
-
-        java.util.Calendar
-            .getInstance()
-            .get(
-                java.util.Calendar
-                    .HOUR_OF_DAY
-            )
-
-
-    return when {
-
-        hour < 12 ->
-            "Good morning"
-
-        hour < 17 ->
-            "Good afternoon"
-
-        else ->
-            "Good evening"
+        TextButton(
+            onClick = {}
+        ) {
+            Text("About ORION")
+        }
     }
 }
