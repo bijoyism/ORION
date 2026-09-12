@@ -509,7 +509,7 @@ fun ChatScreen(
         }
 
 
-        LazyColumn(
+                LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
@@ -524,7 +524,6 @@ fun ChatScreen(
                 ChatBubble(message)
             }
 
-
             if (thinking) {
 
                 item {
@@ -538,7 +537,6 @@ fun ChatScreen(
                 }
             }
         }
-
 
         Row(
             modifier = Modifier
@@ -573,8 +571,7 @@ fun ChatScreen(
 
                         Icon(
                             Icons.Default.Mic,
-                            contentDescription =
-                                "Voice input"
+                            contentDescription = "Voice input"
                         )
                     }
                 },
@@ -582,11 +579,9 @@ fun ChatScreen(
                 shape = RoundedCornerShape(30.dp)
             )
 
-
             Spacer(
                 modifier = Modifier.width(8.dp)
             )
-
 
             IconButton(
                 onClick = {
@@ -708,12 +703,10 @@ private fun askOrion(
                 "application/json"
             )
 
-
             val body =
                 JSONObject()
                     .put("message", text)
                     .toString()
-
 
             connection.outputStream.use {
                 it.write(
@@ -722,7 +715,6 @@ private fun askOrion(
                     )
                 )
             }
-
 
             val responseCode =
                 connection.responseCode
@@ -733,7 +725,6 @@ private fun askOrion(
                 else
                     connection.errorStream
 
-
             val response =
                 stream
                     ?.bufferedReader()
@@ -742,9 +733,7 @@ private fun askOrion(
                     }
                     ?: ""
 
-
             connection.disconnect()
-
 
             val reply = try {
 
@@ -776,7 +765,6 @@ private fun askOrion(
                 response
             }
 
-
             runOnMain {
                 callback(
                     if (reply.isBlank())
@@ -804,6 +792,7 @@ private fun askOrion(
 private fun MainActivity.runOnMain(
     action: () -> Unit
 ) {
+
     runOnUiThread {
         action()
     }
